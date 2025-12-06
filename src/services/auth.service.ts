@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
+import { Resend } from 'resend';
 import config from '../config/index.js';
 
 const prisma = new PrismaClient();
@@ -86,7 +87,7 @@ export async function login(data: { email: string; password: string }) {
 export async function verifyRefreshToken(token: string) {
   try {
     const payload = jwt.verify(token, config.jwt.refreshToken.secret);
-  const db = await prisma.refreshToken.findUnique({ where: { token } });
+    const db = await prisma.refreshToken.findUnique({ where: { token } });
     if (!db || db.revoked) throw new Error('Invalid refresh token');
     if (db.expiresAt && db.expiresAt < new Date()) throw new Error('Refresh token expired');
     return payload;
@@ -98,7 +99,7 @@ export async function verifyRefreshToken(token: string) {
 export async function revokeRefreshToken(token: string) {
   // mark revoked or delete
   try {
-  await prisma.refreshToken.updateMany({ where: { token }, data: { revoked: true } });
+    await prisma.refreshToken.updateMany({ where: { token }, data: { revoked: true } });
   } catch (err) {
     // ignore
   }
@@ -139,15 +140,20 @@ export async function requestOtp(identifier: string) {
   // send OTP via configured SMTP (from config) or log in development
   try {
     // const smtp = config.smtp as any;
-    if (config.smtp && config.smtp.host) {
-      const nodemailer = await import('nodemailer');
-      const transporter = nodemailer.createTransport({
-        host: config.smtp.host,
-        port: config.smtp.port || 587,
-        secure: !!config.smtp.secure,
-        auth: config.smtp.user ? { user: config.smtp.user, pass: config.smtp.pass } : undefined,
-      });
+    if (config.resend.apiKey) {
+    //   const nodemailer = await import('nodemailer');
+    //   const transporter = nodemailer.createTransport({
+    //     host: config.smtp.host,
+    //     port: config.smtp.port || 587,
+    //     secure: !!config.smtp.secure,
+    //     auth: config.smtp.user ? { user: config.smtp.user, pass: config.smtp.pass } : undefined,
+    //   });
     //   console.warn(`SMTP Configured: ${transporter}`);//debug line
+
+
+      const resend = new Resend(config.resend.apiKey);
+
+
       // load html template
       const fs = await import('fs');
       const path = await import('path');
@@ -161,15 +167,23 @@ export async function requestOtp(identifier: string) {
         html = '';
       }
 
-      const info = await transporter.sendMail({
-        from: config.smtp.from || 'no-reply@example.com',
-        to: identifier,
-        subject: 'Your OTP code',
-        text: `Your OTP code is ${code}. It expires in 5 minutes.`,
-        html: html || undefined,
-      });
+    //   const info = await transporter.sendMail({
+    //     from: config.smtp.from || 'no-reply@example.com',
+    //     to: identifier,
+    //     subject: 'Your OTP code',
+    //     text: `Your OTP code is ${code}. It expires in 5 minutes.`,
+    //     html: html || undefined,
+    //   });
     //   console.warn(`OTP email sent: ${info.messageId}`);//debug line
-      return { ok: true, sent: !!(info && (info as any).messageId) };
+
+      const info = await resend.emails.send({
+        from: config.resend.from || 'no-reply@example.com',
+        to: identifier,
+        subject: 'Your OTP to register in LawSoft',
+        html: html || `Your OTP is <strong>${code}</strong>. It expires in 5 minutes.`,
+      });
+
+      return { ok: true, sent: !!(info && (info as any).id) };
     }
   } catch (err) {
     // ignore send errors and fall through to log

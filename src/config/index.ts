@@ -50,9 +50,13 @@ const EnvSchema = z.object({
   CORS_ORIGIN: z.string().optional(),
 
   // AI Model 
-    AI_INFERENCE_ENDPOINT: z.string().url().optional(),
-    AI_MODEL_NAME: z.string().optional(),
-    GITHUB_TOKEN: z.string().optional(),
+  AI_INFERENCE_ENDPOINT: z.string().url().optional(),
+  AI_MODEL_NAME: z.string().optional(),
+  GITHUB_TOKEN: z.string().optional(),
+
+  // Resend (email service)
+  RESEND_API_KEY: z.string().optional(),
+  RESEND_FROM_EMAIL: z.string().optional(),
 });
 
 const parsed = EnvSchema.safeParse(process.env);
@@ -117,6 +121,10 @@ export const config = {
     inferenceEndpoint: parsed.data.AI_INFERENCE_ENDPOINT,
     modelName: parsed.data.AI_MODEL_NAME,
     githubToken: parsed.data.GITHUB_TOKEN,
+  },
+  resend: {
+    apiKey: parsed.data.RESEND_API_KEY,
+    from: parsed.data.RESEND_FROM_EMAIL,
   },
   cors: {
     origin: parsed.data.CORS_ORIGIN,
