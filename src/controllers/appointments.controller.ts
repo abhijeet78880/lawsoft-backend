@@ -162,7 +162,20 @@ export async function updateAgreementUrl(req: Request, res: Response): Promise<R
 
 export async function getAppointments(req: Request, res: Response): Promise<Response> {
   try {
+    const uid = (req as any).user?.id as string;
+    const role = (req as any).user?.role as string;
+    if (!uid) return res.status(401).json({ error: 'Unauthorized' });
+    let search = null;
+    if (role === 'LAWYER') {
+      search = { lawyerId: uid };
+    } else if (role === 'CLIENT') {
+      search = { clientId: uid };
+    } else {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
     const appointments = await prisma.appointment.findMany({
+      where: search,
       select: {
         id: true,
         scheduledAt: true,
