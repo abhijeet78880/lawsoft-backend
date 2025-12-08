@@ -197,7 +197,7 @@ model Case {
   client        User       @relation("ClientCases", fields: [clientId], references: [id])
   lawyerId      String?
   lawyer        User?      @relation("LawyerCases", fields: [lawyerId], references: [id])
-  appointmentId String?
+  appointmentId String? @unique // TODO: make this required later
   appointment   Appointment? @relation(fields: [appointmentId], references: [id])
 
   isAccepted    Boolean   @default(false)

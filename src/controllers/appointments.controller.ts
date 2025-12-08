@@ -214,6 +214,9 @@ export async function getAppointments(req: Request, res: Response): Promise<Resp
       }
     });
 
+    console.error('Fetched appointments:', appointments.length);
+    console.error(search);
+
     return res.status(200).json({ data: appointments });
   } catch (error) {
     return res.status(500).json({ error: 'Failed to fetch appointments' });
