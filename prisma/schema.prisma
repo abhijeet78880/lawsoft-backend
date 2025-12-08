@@ -229,6 +229,8 @@ model Appointment {
   paymentId     String?           @unique
   payment       Payment?          @relation("AppointmentPayment",fields: [paymentId], references: [id])
 
+  aggrementUrl String? // URL to appointment agreement document
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

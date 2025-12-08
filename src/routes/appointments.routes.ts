@@ -16,6 +16,7 @@ router.post('/:id/confirm-payment', auth, validate(schemas.confirmPaymentSchema)
 // Browsers typically don't send a body with GET requests, so allow POST as well.
 router.get('/availability', auth, validate(schemas.availabilitySchema), controll.availability);
 router.post('/availability', auth, validate(schemas.availabilitySchema), controll.availability);
+router.post('/update-agreement-url', auth, validate(schemas.updateAgreementUrlSchema), requireRole('LAWYER'), controll.updateAgreementUrl);
 
 // Public webhook endpoint
 router.post('/webhook', controll.webhook);

@@ -1,9 +1,8 @@
 import { Request, Response } from 'express';
 import appointmentService from '../services/appointment.service.js';
 import paymentService from '../services/payment.service.js';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../utils/prisma/index.js';
+import { updateAgreementUrlSchema } from '../schemas/appointment.schema.js';
 
 function extractError(err: any) {
   if (!err) return 'Unknown error';
@@ -146,3 +145,17 @@ export async function webhook(req: Request, res: Response) {
 }
 
 export default { book, cancel, list, confirmPayment, webhook };
+
+export async function updateAgreementUrl(req: Request, res: Response): Promise<Response> {
+  try {
+    const { body: {appointmentId, agreementUrl}  } = updateAgreementUrlSchema.parse(req);
+    const updated = await prisma.appointment.update({
+    where: { id: appointmentId },
+    data: { aggrementUrl: agreementUrl },
+  });
+  return res.status(200).json({ appointment: updated });
+
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to update agreement URL' });
+  }
+}

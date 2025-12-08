@@ -45,5 +45,13 @@ export const confirmPaymentSchema = z.object({
 	}),
 });
 
-export default { bookAppointmentSchema, cancelAppointmentSchema, availabilitySchema, confirmPaymentSchema };
+export const updateAgreementUrlSchema = z.object({
+  body: z.object({
+	appointmentId: z.string().min(1),
+	agreementUrl: z.string().url(),
+  }),
+});
 
+export type UpdateAgreementUrlInput = z.infer<typeof updateAgreementUrlSchema>;
+
+export default { bookAppointmentSchema, cancelAppointmentSchema, availabilitySchema, confirmPaymentSchema, updateAgreementUrlSchema };
