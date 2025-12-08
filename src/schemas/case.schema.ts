@@ -3,11 +3,14 @@ import { z } from 'zod';
 export const createCaseSchema = z.object({
   body: z.object({
     title: z.string().min(3),
-    description: z.string().optional(),
-    category: z.string().optional(),
-    courtName: z.string().optional(),
+    description: z.string(),
+    category: z.string(),
+    appointmentId: z.string(),
+    clientId: z.string(),
   }),
 });
+
+export type CreateCasePayloadSchema = z.infer<typeof createCaseSchema>;
 
 export const updateCaseSchema = z.object({
   params: z.object({ id: z.string().min(1) }),

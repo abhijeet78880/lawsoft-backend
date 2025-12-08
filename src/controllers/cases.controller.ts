@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import caseService from '../services/case.service.js';
 import storageService from '../services/storage.service.js';
 import { ApiError } from '../middleware/error.middleware.js';
+import { createCaseSchema } from '../schemas/case.schema.js';
+import { prisma } from '../utils/prisma/index.js';
 
 export async function createCase(req: Request, res: Response) {
   try {
@@ -125,3 +127,24 @@ export async function generatePresignedUpload(req: Request, res: Response) {
 }
 
 export default { createCase, listCases, getCase, updateCase, addDocument, listDocuments, addTimeline, addHearing, generatePresignedUpload };
+
+export async function createCaseDetailsByLawyer(req: Request, res: Response) : Promise<Response> {
+  try {
+     const lawyerId = (req as any).user?.id as string;
+    if (!lawyerId) return res.status(401).json({ error: 'Unauthorized' });
+    const {body: {clientId, description, appointmentId, title, category}} = createCaseSchema.parse(req);
+    const caseCreated = await prisma.case.create({
+      data: {
+        lawyerId,
+        clientId,
+        description,
+        appointmentId,
+        title,
+        category
+      }
+    })
+    return res.status(201).json({ data: caseCreated });
+  } catch (error) {
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+}
