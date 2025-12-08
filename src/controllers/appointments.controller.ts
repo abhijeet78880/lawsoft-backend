@@ -159,3 +159,50 @@ export async function updateAgreementUrl(req: Request, res: Response): Promise<R
     return res.status(500).json({ error: 'Failed to update agreement URL' });
   }
 }
+
+export async function getAppointments(req: Request, res: Response): Promise<Response> {
+  try {
+    const appointments = await prisma.appointment.findMany({
+      select: {
+        id: true,
+        scheduledAt: true,
+        durationMins: true,
+        status: true,
+        aggrementUrl: true,
+        meetingLink: true,
+        notes: true,
+        createdAt: true,
+        updatedAt: true,
+        client: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            avatarUrl: true,
+          }
+        },
+        lawyer: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            avatarUrl: true,
+          }
+        },
+        payment: {
+          select: {
+            amount: true,
+            currency: true,
+            status: true,
+          }
+        }
+      }
+    });
+
+    return res.status(200).json({ data: appointments });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch appointments' });
+  }
+}

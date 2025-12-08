@@ -18,6 +18,8 @@ router.get('/availability', auth, validate(schemas.availabilitySchema), controll
 router.post('/availability', auth, validate(schemas.availabilitySchema), controll.availability);
 router.post('/update-agreement-url', auth, validate(schemas.updateAgreementUrlSchema), requireRole('LAWYER'), controll.updateAgreementUrl);
 
+router.post('/getall', auth, controll.getAppointments);
+
 // Public webhook endpoint
 router.post('/webhook', controll.webhook);
 

@@ -197,6 +197,10 @@ model Case {
   client        User       @relation("ClientCases", fields: [clientId], references: [id])
   lawyerId      String?
   lawyer        User?      @relation("LawyerCases", fields: [lawyerId], references: [id])
+  appointmentId String?
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+
+  isAccepted    Boolean   @default(false)
 
   startedAt     DateTime?
   closedAt      DateTime?
@@ -236,6 +240,7 @@ model Appointment {
 
   @@unique([lawyerId, scheduledAt]) // prevent double booking
   @@map("appointments")
+  cases Case[]
 }
 
 model Payment {
