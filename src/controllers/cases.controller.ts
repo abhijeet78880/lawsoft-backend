@@ -310,3 +310,22 @@ export async function createTimelineEvent(req: Request, res: Response) : Promise
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 }
+
+export async function getTimelineEvents(req: Request, res: Response): Promise<Response> {
+  try {
+    const caseId = req.params.caseid;
+    const timelineEvents = await prisma.caseTimeline.findMany({
+      where : { caseId },
+      select: {
+        title: true,
+        description: true,
+        eventDate: true,
+        type: true,
+        createdAt: true,
+      }
+    });
+    return res.status(200).json({ data: timelineEvents });
+  } catch (error) {
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+}
