@@ -234,3 +234,60 @@ export async function getAllCases(req: Request, res: Response): Promise<Response
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 }
+
+export async function getCaseDetails(req: Request, res: Response): Promise<Response> {
+  try {
+    const id = req.params.caseid;
+    const cases = await prisma.case.findMany({
+      where: { id },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        category: true,
+        caseNumber: true,
+        courtName: true,
+        status: true,
+        isAccepted: true,
+        createdAt: true,
+        updatedAt: true,
+        startedAt: true,
+        closedAt: true,
+        disputeResolutionMethod: true,
+        client: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            avatarUrl: true,
+          }
+        },
+        lawyer: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            avatarUrl: true,
+          }
+        },
+        appointment: {
+          select: {
+            id: true,
+            scheduledAt: true,
+            durationMins: true,
+            status: true,
+            meetingLink: true,
+            notes: true,
+          }
+        }
+      }
+    });
+    console.warn('Retrieved cases:', cases);
+    return res.status(200).json({ data: cases });
+  } catch (error: any) {
+    console.error('Error retrieving cases:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+}

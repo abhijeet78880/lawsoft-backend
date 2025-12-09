@@ -24,5 +24,6 @@ router.post('/:id/hearings', auth, requireRole('LAWYER'), validate(schemas.addHe
 router.post('/create/case/details/lawyer', auth, requireRole('LAWYER'), validate(schemas.createCaseSchema), ctrl.createCaseDetailsByLawyer);
 router.post('/accept/case/:id', auth, requireRole('CLIENT'), ctrl.acceptCase);
 router.get('/getall/cases', auth, requireRole('CLIENT', 'LAWYER'), ctrl.getAllCases);
+router.get('/get/details/:caseid', auth, requireRole('CLIENT', 'LAWYER'), ctrl.getCaseDetails);
 
 export default router;
