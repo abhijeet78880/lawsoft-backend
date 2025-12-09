@@ -329,3 +329,15 @@ export async function getTimelineEvents(req: Request, res: Response): Promise<Re
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 }
+
+export async function getHearings(req: Request, res: Response): Promise<Response> {
+  try {
+    const caseId = req.params.caseid;
+    const hearings = await prisma.hearing.findMany({
+      where : { caseId }
+    });
+    return res.status(200).json({ data: hearings });
+  } catch (error) {
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+}
