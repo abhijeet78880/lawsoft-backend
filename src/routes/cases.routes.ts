@@ -27,5 +27,6 @@ router.get('/getall/cases', auth, requireRole('CLIENT', 'LAWYER'), ctrl.getAllCa
 router.get('/get/details/:caseid', auth, requireRole('CLIENT', 'LAWYER'), ctrl.getCaseDetails);
 router.post('/add/timeline/event/:caseid', auth, requireRole('LAWYER'), ctrl.createTimelineEvent);
 router.get('/timeline/events/:caseid', auth, requireRole('CLIENT', 'LAWYER'), ctrl.getTimelineEvents);
+router.get('/hearings/:caseid', auth, requireRole('CLIENT', 'LAWYER'), ctrl.getHearings);
 
 export default router;
