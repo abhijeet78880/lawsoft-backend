@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import caseService from '../services/case.service.js';
 import storageService from '../services/storage.service.js';
 import { ApiError } from '../middleware/error.middleware.js';
-import { createCaseSchema } from '../schemas/case.schema.js';
+import { createCaseSchema, createTimelineEventSchema } from '../schemas/case.schema.js';
 import { prisma } from '../utils/prisma/index.js';
 
 export async function createCase(req: Request, res: Response) {
@@ -288,6 +288,25 @@ export async function getCaseDetails(req: Request, res: Response): Promise<Respo
     return res.status(200).json({ data: cases });
   } catch (error: any) {
     console.error('Error retrieving cases:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+}
+
+export async function createTimelineEvent(req: Request, res: Response) : Promise<Response> {
+  try {
+    const {title, description, eventDate, type} = createTimelineEventSchema.parse(req.body);
+    const caseId = req.params.caseid;
+    const timelineEnent = await prisma.caseTimeline.create({
+      data: {
+        title,
+        description,
+        eventDate: new Date(eventDate),
+        type,
+        caseId
+      }
+    })
+    return res.status(201).json({ data: timelineEnent });
+  } catch (error) {
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 }

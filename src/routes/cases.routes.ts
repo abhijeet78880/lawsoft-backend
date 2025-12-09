@@ -25,5 +25,6 @@ router.post('/create/case/details/lawyer', auth, requireRole('LAWYER'), validate
 router.post('/accept/case/:id', auth, requireRole('CLIENT'), ctrl.acceptCase);
 router.get('/getall/cases', auth, requireRole('CLIENT', 'LAWYER'), ctrl.getAllCases);
 router.get('/get/details/:caseid', auth, requireRole('CLIENT', 'LAWYER'), ctrl.getCaseDetails);
+router.post('/add/timeline/event/:caseid', auth, requireRole('LAWYER'), validate(schemas.createTimelineEventSchema), ctrl.createTimelineEvent);
 
 export default router;
