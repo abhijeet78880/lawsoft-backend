@@ -4,6 +4,7 @@ import storageService from '../services/storage.service.js';
 import { ApiError } from '../middleware/error.middleware.js';
 import { createCaseSchema, createTimelineEventSchema } from '../schemas/case.schema.js';
 import { prisma } from '../utils/prisma/index.js';
+import { createNotification } from '../services/notification.service.js';
 
 export async function createCase(req: Request, res: Response) {
   try {
@@ -103,6 +104,22 @@ export async function addHearing(req: Request, res: Response) {
     const caseId = req.params.id;
     const { date, court, judge, purpose, notes } = req.body as any;
     const hearing = await caseService.addHearing(caseId, { date: new Date(date), court, judge, purpose, notes });
+    await prisma.caseTimeline.create({
+      data: {
+        caseId,
+        title: `Hearing Scheduled on ${new Date(date).toDateString()}`,
+        description: `A hearing has been scheduled at ${court} before Judge ${judge}. Purpose: ${purpose}`,
+        eventDate: new Date(date),
+        type: 'hearing'
+      }
+    })
+    await createNotification(
+      caseId, 
+      'New Hearing Scheduled', 
+      `A new hearing has been scheduled on ${new Date(date).toDateString()} at ${court}.`, 
+      'CASE_UPDATE', 
+      caseId
+    );
     res.status(201).json({ hearing });
   } catch (err: any) {
     res.status(400).json({ error: String(err.message ?? err) });
