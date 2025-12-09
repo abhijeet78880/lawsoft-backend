@@ -1,8 +1,10 @@
 import { RequestHandler } from 'express';
 import { ApiError } from './error.middleware.js';
 
+type Role = 'ADMIN' | 'LAWYER' | 'CLIENT';
+
 /** requireRole(...roles) - middleware factory to enforce user roles */
-export function requireRole(...roles: string[]): RequestHandler {
+export function requireRole(...roles: Role[]): RequestHandler {
 	return (req, _res, next) => {
 		const user = (req as any).user;
 		if (!user || !user.role) {

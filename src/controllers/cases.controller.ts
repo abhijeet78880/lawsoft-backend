@@ -148,3 +148,20 @@ export async function createCaseDetailsByLawyer(req: Request, res: Response) : P
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 }
+
+export async function acceptCase(req: Request, res: Response) : Promise<Response> {
+  try {
+    const appointmentId = req.params.id;
+    const today = new Date();
+    const acceptedCase = await prisma.case.update({
+      where: { appointmentId },
+      data: {
+        isAccepted: true,
+        startedAt: today,
+      }
+    })
+    return res.status(200).json({ data: acceptedCase });
+  } catch (error) {
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+}

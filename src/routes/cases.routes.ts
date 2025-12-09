@@ -22,5 +22,6 @@ router.post('/:id/timeline', auth, validate(schemas.addTimelineSchema), ctrl.add
 router.post('/:id/hearings', auth, requireRole('LAWYER'), validate(schemas.addHearingSchema), ctrl.addHearing);
 
 router.post('/create/case/details/lawyer', auth, requireRole('LAWYER'), validate(schemas.createCaseSchema), ctrl.createCaseDetailsByLawyer);
+router.post('/accept/case/:id', auth, requireRole('CLIENT'), ctrl.acceptCase);
 
 export default router;
