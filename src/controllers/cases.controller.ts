@@ -31,6 +31,7 @@ export async function listCases(req: Request, res: Response) {
 
 export async function getCase(req: Request, res: Response) {
   try {
+    console.error(1234567890, "i am getting called")
     const id = req.params.id;
     const c = await caseService.getById(id);
     if (!c) return res.status(404).json({ error: 'Case not found' });
@@ -162,6 +163,74 @@ export async function acceptCase(req: Request, res: Response) : Promise<Response
     })
     return res.status(200).json({ data: acceptedCase });
   } catch (error) {
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+}
+
+export async function getAllCases(req: Request, res: Response): Promise<Response> {
+  try {
+    const uid = (req as any).user?.id as string;
+    const role = (req as any).user?.role as string;
+    if (!uid) return res.status(401).json({ error: 'Unauthorized' });
+    let search = null;
+    if (role === 'LAWYER') {
+      search = { lawyerId: uid };
+    } else if (role === 'CLIENT') {
+      search = { clientId: uid };
+    } else {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    console.warn('User ID:', uid, 'Role:', role);
+    const cases = await prisma.case.findMany({
+      where: search,
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        category: true,
+        caseNumber: true,
+        courtName: true,
+        status: true,
+        isAccepted: true,
+        createdAt: true,
+        updatedAt: true,
+        startedAt: true,
+        closedAt: true,
+        disputeResolutionMethod: true,
+        client: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            avatarUrl: true,
+          }
+        },
+        lawyer: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            avatarUrl: true,
+          }
+        },
+        appointment: {
+          select: {
+            id: true,
+            scheduledAt: true,
+            durationMins: true,
+            status: true,
+            meetingLink: true,
+            notes: true,
+          }
+        }
+      }
+    });
+    console.warn('Retrieved cases:', cases);
+    return res.status(200).json({ data: cases });
+  } catch (error: any) {
+    console.error('Error retrieving cases:', error);
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 }

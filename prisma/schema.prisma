@@ -181,6 +181,12 @@ model Lawyer {
   @@map("lawyers")
 }
 
+enum DisputeResolutionMethod {
+  TRIAL
+  MEDIATION
+  ARBITRATION
+}
+
 // ==========================
 // Core Features
 // ==========================
@@ -207,6 +213,8 @@ model Case {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  disputeResolutionMethod DisputeResolutionMethod? 
 
   documents     Document[]
   hearings      Hearing[]
