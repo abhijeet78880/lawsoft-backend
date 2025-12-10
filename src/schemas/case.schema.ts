@@ -23,7 +23,6 @@ export const updateCaseSchema = z.object({
 });
 
 export const addDocumentSchema = z.object({
-  params: z.object({ id: z.string().min(1) }),
   body: z.object({
     fileurl: z.string().min(1),
     fileName: z.string().min(1),
@@ -31,6 +30,8 @@ export const addDocumentSchema = z.object({
     size: z.coerce.number().optional(),
   }),
 });
+
+export type AddDocumentSchema = z.infer<typeof addDocumentSchema>;
 
 export const addTimelineSchema = z.object({
   params: z.object({ id: z.string().min(1) }),

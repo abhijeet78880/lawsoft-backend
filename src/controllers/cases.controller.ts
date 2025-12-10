@@ -82,7 +82,7 @@ export async function listDocuments(req: Request, res: Response) {
   try {
     const caseId = req.params.id;
     const docs = await caseService.listDocuments(caseId);
-    res.json({ documents: docs });
+    res.json({ data: docs });
   } catch (err: any) {
     res.status(500).json({ error: String(err.message ?? err) });
   }
