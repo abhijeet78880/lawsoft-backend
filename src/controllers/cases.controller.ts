@@ -358,3 +358,28 @@ export async function getHearings(req: Request, res: Response): Promise<Response
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 }
+
+// export async function createTask(req: Request, res: Response) : Promise<Response> {
+//   try {
+//     const caseId = req.params.caseid;
+//     const uid = (req as any).user?.id as string;
+//     const role = (req as any).user?.role as string;
+//     if (!uid) return res.status(401).json({ error: 'Unauthorized' });
+//     let search = null;
+//     if (role === 'LAWYER') {
+//       search = { lawyerId: uid };
+//     } else if (role === 'CLIENT') {
+//       search = { clientId: uid };
+//     } else {
+//       return res.status(403).json({ error: 'Forbidden' });
+//     }
+//     const task = await prisma.task.create({
+//       data: {
+//         caseId,
+
+//       }
+//     })
+//   } catch (error) {
+    
+//   }
+// }

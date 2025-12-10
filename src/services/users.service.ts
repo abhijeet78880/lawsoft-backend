@@ -28,8 +28,8 @@ export async function upsertClientInfo(userId: string, payload: Record<string, a
 	// Use upsert so create or update is handled in one call
 	return prisma.client.upsert({
 		where: { userId },
-		create: { userId, ...payload },
-		update: payload,
+		create: { userId, ...payload, dob: payload.dob ? new Date(payload.dob + "T00:00:00.000Z") : undefined },
+		update: { ...payload, dob: payload.dob ? new Date(payload.dob + "T00:00:00.000Z") : undefined },
 	});
 }
 
