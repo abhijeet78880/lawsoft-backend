@@ -5,8 +5,23 @@ import chatService from '../services/chat.service.js';
 
 let io: Server | null = null;
 
+// Track online users: userId -> Set of socket ids
+const onlineUsers = new Map<string, Set<string>>();
+
 export function getIO() {
 	return io;
+}
+
+export function isUserOnline(userId: string): boolean {
+	const sockets = onlineUsers.get(userId);
+	return sockets ? sockets.size > 0 : false;
+}
+
+export function getOnlineUsers(): string[] {
+	return Array.from(onlineUsers.keys()).filter((userId) => {
+		const sockets = onlineUsers.get(userId);
+		return sockets && sockets.size > 0;
+	});
 }
 
 export function init(server: HttpServer, opts?: { logger?: any }) {
@@ -17,6 +32,37 @@ export function init(server: HttpServer, opts?: { logger?: any }) {
 
 	io.on('connection', (socket: Socket) => {
 		const user = (socket as any).user;
+		const userId = user?.id;
+
+		// Track user online status
+		if (userId) {
+			if (!onlineUsers.has(userId)) {
+				onlineUsers.set(userId, new Set());
+			}
+			onlineUsers.get(userId)!.add(socket.id);
+
+			// Broadcast user online to all connected clients
+			socket.broadcast.emit('user:online', { userId });
+
+			// Send current online users to the connecting client
+			socket.emit('users:online', { usersOnline: getOnlineUsers() });
+		}
+
+		// Handle disconnect - update online status
+		socket.on('disconnect', () => {
+			if (userId) {
+				const userSockets = onlineUsers.get(userId);
+				if (userSockets) {
+					userSockets.delete(socket.id);
+					if (userSockets.size === 0) {
+						onlineUsers.delete(userId);
+						// Broadcast user offline to all connected clients
+						socket.broadcast.emit('user:offline', { userId });
+					}
+				}
+			}
+		});
+
 		// join rooms on request
 		socket.on('chat:join', async (payload: { chatId: string }) => {
 			try {
