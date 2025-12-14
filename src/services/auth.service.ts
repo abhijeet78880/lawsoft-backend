@@ -182,7 +182,7 @@ export async function requestOtp(identifier: string) {
         subject: 'Your OTP to register in LawSoft',
         html: html || `Your OTP is <strong>${code}</strong>. It expires in 5 minutes.`,
       });
-
+      // change the sent response later it is not accurate sending false even if email is sent
       return { ok: true, sent: !!(info && (info as any).id) };
     }
   } catch (err) {

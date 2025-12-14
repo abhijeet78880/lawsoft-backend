@@ -1,9 +1,8 @@
 import { Request, Response } from 'express';
 import appointmentService from '../services/appointment.service.js';
 import paymentService from '../services/payment.service.js';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../utils/prisma/index.js';
+import { updateAgreementUrlSchema } from '../schemas/appointment.schema.js';
 
 function extractError(err: any) {
   if (!err) return 'Unknown error';
@@ -146,3 +145,80 @@ export async function webhook(req: Request, res: Response) {
 }
 
 export default { book, cancel, list, confirmPayment, webhook };
+
+export async function updateAgreementUrl(req: Request, res: Response): Promise<Response> {
+  try {
+    const { body: {appointmentId, agreementUrl}  } = updateAgreementUrlSchema.parse(req);
+    const updated = await prisma.appointment.update({
+    where: { id: appointmentId },
+    data: { aggrementUrl: agreementUrl },
+  });
+  return res.status(200).json({ appointment: updated });
+
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to update agreement URL' });
+  }
+}
+
+export async function getAppointments(req: Request, res: Response): Promise<Response> {
+  try {
+    const uid = (req as any).user?.id as string;
+    const role = (req as any).user?.role as string;
+    if (!uid) return res.status(401).json({ error: 'Unauthorized' });
+    let search = null;
+    if (role === 'LAWYER') {
+      search = { lawyerId: uid };
+    } else if (role === 'CLIENT') {
+      search = { clientId: uid };
+    } else {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const appointments = await prisma.appointment.findMany({
+      where: search,
+      select: {
+        id: true,
+        scheduledAt: true,
+        durationMins: true,
+        status: true,
+        aggrementUrl: true,
+        meetingLink: true,
+        notes: true,
+        createdAt: true,
+        updatedAt: true,
+        client: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            avatarUrl: true,
+          }
+        },
+        lawyer: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            avatarUrl: true,
+          }
+        },
+        payment: {
+          select: {
+            amount: true,
+            currency: true,
+            status: true,
+          }
+        }
+      }
+    });
+
+    console.error('Fetched appointments:', appointments.length);
+    console.error(search);
+
+    return res.status(200).json({ data: appointments });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch appointments' });
+  }
+}

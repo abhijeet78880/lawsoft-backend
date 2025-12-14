@@ -2,6 +2,9 @@ import { Request, Response } from 'express';
 import caseService from '../services/case.service.js';
 import storageService from '../services/storage.service.js';
 import { ApiError } from '../middleware/error.middleware.js';
+import { createCaseSchema, createTimelineEventSchema } from '../schemas/case.schema.js';
+import { prisma } from '../utils/prisma/index.js';
+import { createNotification } from '../services/notification.service.js';
 
 export async function createCase(req: Request, res: Response) {
   try {
@@ -29,6 +32,7 @@ export async function listCases(req: Request, res: Response) {
 
 export async function getCase(req: Request, res: Response) {
   try {
+    console.error(1234567890, "i am getting called")
     const id = req.params.id;
     const c = await caseService.getById(id);
     if (!c) return res.status(404).json({ error: 'Case not found' });
@@ -78,7 +82,7 @@ export async function listDocuments(req: Request, res: Response) {
   try {
     const caseId = req.params.id;
     const docs = await caseService.listDocuments(caseId);
-    res.json({ documents: docs });
+    res.json({ data: docs });
   } catch (err: any) {
     res.status(500).json({ error: String(err.message ?? err) });
   }
@@ -100,13 +104,29 @@ export async function addHearing(req: Request, res: Response) {
     const caseId = req.params.id;
     const { date, court, judge, purpose, notes } = req.body as any;
     const hearing = await caseService.addHearing(caseId, { date: new Date(date), court, judge, purpose, notes });
+    await prisma.caseTimeline.create({
+      data: {
+        caseId,
+        title: `Hearing Scheduled on ${new Date(date).toDateString()}`,
+        description: `A hearing has been scheduled at ${court} before Judge ${judge}. Purpose: ${purpose}`,
+        eventDate: new Date(date),
+        type: 'hearing'
+      }
+    })
+    await createNotification(
+      caseId, 
+      'New Hearing Scheduled', 
+      `A new hearing has been scheduled on ${new Date(date).toDateString()} at ${court}.`, 
+      'CASE_UPDATE', 
+      caseId
+    );
     res.status(201).json({ hearing });
   } catch (err: any) {
     res.status(400).json({ error: String(err.message ?? err) });
   }
 }
 
-// zod schema for this controller is not defined in src/schemas/case.schema.ts please define it there 
+// zod schema for this controller is not defined in src/schemas/case.schema.ts please define it there later
 export async function generatePresignedUpload(req: Request, res: Response) {
   try {
     const uploaderId = (req as any).user?.id as string;
@@ -125,3 +145,354 @@ export async function generatePresignedUpload(req: Request, res: Response) {
 }
 
 export default { createCase, listCases, getCase, updateCase, addDocument, listDocuments, addTimeline, addHearing, generatePresignedUpload };
+
+export async function createCaseDetailsByLawyer(req: Request, res: Response) : Promise<Response> {
+  try {
+     const lawyerId = (req as any).user?.id as string;
+    if (!lawyerId) return res.status(401).json({ error: 'Unauthorized' });
+    const {body: {clientId, description, appointmentId, title, category}} = createCaseSchema.parse(req);
+    const caseCreated = await prisma.case.create({
+      data: {
+        lawyerId,
+        clientId,
+        description,
+        appointmentId,
+        title,
+        category
+      }
+    })
+    return res.status(201).json({ data: caseCreated });
+  } catch (error) {
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+}
+
+export async function acceptCase(req: Request, res: Response) : Promise<Response> {
+  try {
+    const appointmentId = req.params.id;
+    const today = new Date();
+    
+    // First check if a case with this appointmentId exists
+    const existingCase = await prisma.case.findUnique({
+      where: { appointmentId }
+    });
+    
+    if (!existingCase) {
+      return res.status(404).json({ error: 'Case not found for this appointment' });
+    }
+    
+    const acceptedCase = await prisma.case.update({
+      where: { appointmentId },
+      data: {
+        isAccepted: true,
+        startedAt: today,
+      }
+    })
+    return res.status(200).json({ data: acceptedCase });
+  } catch (error) {
+    console.error('Error accepting case:', error);
+    return res.status(500).json({ error: 'Internal Server Error', details: (error as Error).message });
+  }
+}
+
+export async function getAllCases(req: Request, res: Response): Promise<Response> {
+  try {
+    const uid = (req as any).user?.id as string;
+    const role = (req as any).user?.role as string;
+    if (!uid) return res.status(401).json({ error: 'Unauthorized' });
+    let search = null;
+    if (role === 'LAWYER') {
+      search = { lawyerId: uid };
+    } else if (role === 'CLIENT') {
+      search = { clientId: uid };
+    } else {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    console.warn('User ID:', uid, 'Role:', role);
+    const cases = await prisma.case.findMany({
+      where: search,
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        category: true,
+        caseNumber: true,
+        courtName: true,
+        status: true,
+        isAccepted: true,
+        createdAt: true,
+        updatedAt: true,
+        startedAt: true,
+        closedAt: true,
+        disputeResolutionMethod: true,
+        client: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            avatarUrl: true,
+          }
+        },
+        lawyer: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            avatarUrl: true,
+          }
+        },
+        appointment: {
+          select: {
+            id: true,
+            scheduledAt: true,
+            durationMins: true,
+            status: true,
+            meetingLink: true,
+            notes: true,
+          }
+        }
+      }
+    });
+    // console.warn('Retrieved cases:', cases); //debugging line
+    return res.status(200).json({ data: cases });
+  } catch (error: any) {
+    console.error('Error retrieving cases:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+}
+
+export async function getCaseDetails(req: Request, res: Response): Promise<Response> {
+  try {
+    const id = req.params.caseid;
+    const cases = await prisma.case.findMany({
+      where: { id },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        category: true,
+        caseNumber: true,
+        courtName: true,
+        status: true,
+        isAccepted: true,
+        createdAt: true,
+        updatedAt: true,
+        startedAt: true,
+        closedAt: true,
+        disputeResolutionMethod: true,
+        client: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            avatarUrl: true,
+          }
+        },
+        lawyer: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            avatarUrl: true,
+          }
+        },
+        appointment: {
+          select: {
+            id: true,
+            scheduledAt: true,
+            durationMins: true,
+            status: true,
+            meetingLink: true,
+            notes: true,
+          }
+        }
+      }
+    });
+    // console.warn('Retrieved cases:', cases); //debugging line
+    return res.status(200).json({ data: cases });
+  } catch (error: any) {
+    console.error('Error retrieving cases:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+}
+
+export async function createTimelineEvent(req: Request, res: Response) : Promise<Response> {
+  try {
+    const {title, description, eventDate, type} = createTimelineEventSchema.parse(req.body);
+    const caseId = req.params.caseid;
+    const timelineEnent = await prisma.caseTimeline.create({
+      data: {
+        title,
+        description,
+        eventDate: new Date(eventDate),
+        type,
+        caseId
+      }
+    })
+    return res.status(201).json({ data: timelineEnent });
+  } catch (error) {
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+}
+
+export async function getTimelineEvents(req: Request, res: Response): Promise<Response> {
+  try {
+    const caseId = req.params.caseid;
+    const timelineEvents = await prisma.caseTimeline.findMany({
+      where : { caseId },
+      select: {
+        title: true,
+        description: true,
+        eventDate: true,
+        type: true,
+        createdAt: true,
+      }
+    });
+    return res.status(200).json({ data: timelineEvents });
+  } catch (error) {
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+}
+
+export async function getHearings(req: Request, res: Response): Promise<Response> {
+  try {
+    const caseId = req.params.caseid;
+    const hearings = await prisma.hearing.findMany({
+      where : { caseId }
+    });
+    return res.status(200).json({ data: hearings });
+  } catch (error) {
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+}
+
+// Task controller functions
+export async function createTask(req: Request, res: Response): Promise<Response> {
+  try {
+    const caseId = req.params.id;
+    const assignedById = (req as any).user?.id as string;
+    if (!assignedById) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { title, description, assignedToId, dueDate } = req.body as any;
+
+    // Verify the case exists and user has access
+    const existingCase = await caseService.getById(caseId);
+    if (!existingCase) return res.status(404).json({ error: 'Case not found' });
+
+    // Allow lawyer assigned to the case, client owner, or admin to create tasks
+    const userRole = (req as any).user?.role as string;
+    const isLawyerOnCase = existingCase.lawyerId === assignedById;
+    const isClientOnCase = existingCase.clientId === assignedById;
+    if (userRole !== 'ADMIN' && !isLawyerOnCase && !isClientOnCase) {
+      return res.status(403).json({ error: 'Only the lawyer or client involved in this case can create tasks' });
+    }
+
+    const task = await caseService.createTask(caseId, assignedById, {
+      title,
+      description,
+      assignedToId,
+      dueDate: dueDate ? new Date(dueDate) : undefined,
+    });
+
+    // Create notification for assigned user
+    await createNotification(
+      assignedToId,
+      'New Task Assigned',
+      `You have been assigned a new task: ${title}`,
+      'TASK_ASSIGNED',
+      caseId
+    );
+
+    return res.status(201).json({ task });
+  } catch (error: any) {
+    return res.status(400).json({ error: String(error.message ?? error) });
+  }
+}
+
+export async function updateTask(req: Request, res: Response): Promise<Response> {
+  try {
+    const taskId = req.params.taskId;
+    const userId = (req as any).user?.id as string;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { status } = req.body as { status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'OVERDUE' };
+
+    // Verify the task exists
+    const existingTask = await caseService.getTaskById(taskId);
+    if (!existingTask) return res.status(404).json({ error: 'Task not found' });
+
+    // Access control: allow if admin, lawyer/client on case, task creator, or assigned user
+    const userRole = (req as any).user?.role as string;
+    const isLawyerOnCase = existingTask.case?.lawyerId === userId;
+    const isClientOnCase = existingTask.case?.clientId === userId;
+    const isTaskCreator = existingTask.assignedById === userId;
+    const isAssignedUser = existingTask.assignedToId === userId;
+    
+    if (userRole !== 'ADMIN' && !isLawyerOnCase && !isClientOnCase && !isTaskCreator && !isAssignedUser) {
+      return res.status(403).json({ error: 'You do not have permission to update this task' });
+    }
+
+    const updatedTask = await caseService.updateTaskStatus(taskId, status);
+
+    return res.status(200).json({ task: updatedTask });
+  } catch (error: any) {
+    return res.status(400).json({ error: String(error.message ?? error) });
+  }
+}
+
+export async function getTasks(req: Request, res: Response): Promise<Response> {
+  try {
+    const caseId = req.params.id;
+    const userId = (req as any).user?.id as string;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    // Verify the case exists
+    const existingCase = await caseService.getById(caseId);
+    if (!existingCase) return res.status(404).json({ error: 'Case not found' });
+
+    // Access control: allow if admin, lawyer assigned to case, or client owner
+    const userRole = (req as any).user?.role as string;
+    if (
+      userRole !== 'ADMIN' &&
+      existingCase.lawyerId !== userId &&
+      existingCase.clientId !== userId
+    ) {
+      return res.status(403).json({ error: 'You do not have access to this case' });
+    }
+
+    const tasks = await caseService.getTasksByCaseId(caseId);
+    return res.status(200).json({ tasks });
+  } catch (error: any) {
+    return res.status(500).json({ error: String(error.message ?? error) });
+  }
+}
+
+// Resolution method controller
+export async function updateResolutionMethod(req: Request, res: Response): Promise<Response> {
+  try {
+    const caseId = req.params.id;
+    const userId = (req as any).user?.id as string;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { resolutionMethod } = req.body as { resolutionMethod: 'TRIAL' | 'MEDIATION' | 'ARBITRATION' };
+
+    // Verify the case exists
+    const existingCase = await caseService.getById(caseId);
+    if (!existingCase) return res.status(404).json({ error: 'Case not found' });
+
+    // Only lawyer assigned to the case or admin can update resolution method
+    const userRole = (req as any).user?.role as string;
+    if (userRole !== 'ADMIN' && existingCase.lawyerId !== userId) {
+      return res.status(403).json({ error: 'Only the assigned lawyer can update the resolution method' });
+    }
+
+    const updatedCase = await caseService.updateResolutionMethod(caseId, resolutionMethod);
+    return res.status(200).json({ case: updatedCase });
+  } catch (error: any) {
+    return res.status(400).json({ error: String(error.message ?? error) });
+  }
+}

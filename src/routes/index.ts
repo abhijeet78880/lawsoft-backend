@@ -30,10 +30,11 @@ await tryMount('/chat', './chat.routes.js');
 await tryMount('/admin', './admin.routes.js');
 await tryMount('/webhooks', './webhooks.routes.js');
 await tryMount('/model', './model.routes.js');
+await tryMount('/storage', './storage.routes.js');
 
 // Optionally expose a simple index
 router.get('/', (_req, res) => {
-  res.json({ success: true, message: 'API v1', mounts: ['auth','users','lawyers','appointments','cases','chat','admin','webhooks'] });
+  res.json({ success: true, message: 'API v1', mounts: ['auth','users','lawyers','appointments','cases','chat','admin','webhooks','storage'] });
 });
 
 // Lightweight health endpoint under /api/v1/health so service checks work even when feature routers are mounted

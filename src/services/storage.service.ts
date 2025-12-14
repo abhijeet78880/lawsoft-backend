@@ -18,7 +18,7 @@ export async function createPresignedUpload(key: string, contentType = 'applicat
     // const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner');
 
     
-    const cmd = new PutObjectCommand({ Bucket: config.aws.s3.bucket, Key: key, ContentType: contentType });
+    const cmd = new PutObjectCommand({ Bucket: config.aws.s3.bucket, Key: key, ContentType: contentType, ACL: 'public-read' });
     const uploadUrl = await getSignedUrl(client, cmd, { expiresIn: expiresInSec });
     const endpointHost = new URL(config.aws.s3.endpoint!).hostname;
     const fileUrl = `https://${config.aws.s3.bucket}.${endpointHost}/${key}`

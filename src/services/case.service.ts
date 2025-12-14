@@ -51,4 +51,64 @@ export async function addHearing(caseId: string, data: { date: Date; court?: str
   return prisma.hearing.create({ data: { caseId, date: data.date, court: data.court ?? null, judge: data.judge ?? null, purpose: data.purpose ?? '', notes: data.notes ?? null } });
 }
 
-export default { createCase, listForUser, getById, updateCase, addDocument, listDocuments, addTimelineEvent, addHearing };
+// Task functions
+export async function createTask(caseId: string, assignedById: string, data: { title: string; description?: string; assignedToId: string; dueDate?: Date }) {
+  return prisma.task.create({
+    data: {
+      caseId,
+      title: data.title,
+      description: data.description ?? null,
+      assignedToId: data.assignedToId,
+      assignedById,
+      dueDate: data.dueDate ?? null,
+      status: 'PENDING',
+    },
+    include: {
+      assignedTo: { select: { id: true, name: true, email: true, avatarUrl: true } },
+      assignedBy: { select: { id: true, name: true, email: true, avatarUrl: true } },
+    },
+  });
+}
+
+export async function updateTaskStatus(taskId: string, status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'OVERDUE') {
+  return prisma.task.update({
+    where: { id: taskId },
+    data: { status },
+    include: {
+      assignedTo: { select: { id: true, name: true, email: true, avatarUrl: true } },
+      assignedBy: { select: { id: true, name: true, email: true, avatarUrl: true } },
+    },
+  });
+}
+
+export async function getTasksByCaseId(caseId: string) {
+  return prisma.task.findMany({
+    where: { caseId },
+    include: {
+      assignedTo: { select: { id: true, name: true, email: true, avatarUrl: true } },
+      assignedBy: { select: { id: true, name: true, email: true, avatarUrl: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
+export async function getTaskById(taskId: string) {
+  return prisma.task.findUnique({
+    where: { id: taskId },
+    include: {
+      assignedTo: { select: { id: true, name: true, email: true, avatarUrl: true } },
+      assignedBy: { select: { id: true, name: true, email: true, avatarUrl: true } },
+      case: { select: { id: true, title: true, clientId: true, lawyerId: true } },
+    },
+  });
+}
+
+// Resolution method function
+export async function updateResolutionMethod(caseId: string, resolutionMethod: 'TRIAL' | 'MEDIATION' | 'ARBITRATION') {
+  return prisma.case.update({
+    where: { id: caseId },
+    data: { disputeResolutionMethod: resolutionMethod },
+  });
+}
+
+export default { createCase, listForUser, getById, updateCase, addDocument, listDocuments, addTimelineEvent, addHearing, createTask, updateTaskStatus, getTasksByCaseId, getTaskById, updateResolutionMethod };
