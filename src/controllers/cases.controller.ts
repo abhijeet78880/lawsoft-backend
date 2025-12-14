@@ -244,7 +244,7 @@ export async function getAllCases(req: Request, res: Response): Promise<Response
         }
       }
     });
-    console.warn('Retrieved cases:', cases);
+    // console.warn('Retrieved cases:', cases); //debugging line
     return res.status(200).json({ data: cases });
   } catch (error: any) {
     console.error('Error retrieving cases:', error);
@@ -301,7 +301,7 @@ export async function getCaseDetails(req: Request, res: Response): Promise<Respo
         }
       }
     });
-    console.warn('Retrieved cases:', cases);
+    // console.warn('Retrieved cases:', cases); //debugging line
     return res.status(200).json({ data: cases });
   } catch (error: any) {
     console.error('Error retrieving cases:', error);
@@ -359,27 +359,129 @@ export async function getHearings(req: Request, res: Response): Promise<Response
   }
 }
 
-// export async function createTask(req: Request, res: Response) : Promise<Response> {
-//   try {
-//     const caseId = req.params.caseid;
-//     const uid = (req as any).user?.id as string;
-//     const role = (req as any).user?.role as string;
-//     if (!uid) return res.status(401).json({ error: 'Unauthorized' });
-//     let search = null;
-//     if (role === 'LAWYER') {
-//       search = { lawyerId: uid };
-//     } else if (role === 'CLIENT') {
-//       search = { clientId: uid };
-//     } else {
-//       return res.status(403).json({ error: 'Forbidden' });
-//     }
-//     const task = await prisma.task.create({
-//       data: {
-//         caseId,
+// Task controller functions
+export async function createTask(req: Request, res: Response): Promise<Response> {
+  try {
+    const caseId = req.params.id;
+    const assignedById = (req as any).user?.id as string;
+    if (!assignedById) return res.status(401).json({ error: 'Unauthorized' });
 
-//       }
-//     })
-//   } catch (error) {
+    const { title, description, assignedToId, dueDate } = req.body as any;
+
+    // Verify the case exists and user has access
+    const existingCase = await caseService.getById(caseId);
+    if (!existingCase) return res.status(404).json({ error: 'Case not found' });
+
+    // Allow lawyer assigned to the case, client owner, or admin to create tasks
+    const userRole = (req as any).user?.role as string;
+    const isLawyerOnCase = existingCase.lawyerId === assignedById;
+    const isClientOnCase = existingCase.clientId === assignedById;
+    if (userRole !== 'ADMIN' && !isLawyerOnCase && !isClientOnCase) {
+      return res.status(403).json({ error: 'Only the lawyer or client involved in this case can create tasks' });
+    }
+
+    const task = await caseService.createTask(caseId, assignedById, {
+      title,
+      description,
+      assignedToId,
+      dueDate: dueDate ? new Date(dueDate) : undefined,
+    });
+
+    // Create notification for assigned user
+    await createNotification(
+      assignedToId,
+      'New Task Assigned',
+      `You have been assigned a new task: ${title}`,
+      'TASK_ASSIGNED',
+      caseId
+    );
+
+    return res.status(201).json({ task });
+  } catch (error: any) {
+    return res.status(400).json({ error: String(error.message ?? error) });
+  }
+}
+
+export async function updateTask(req: Request, res: Response): Promise<Response> {
+  try {
+    const taskId = req.params.taskId;
+    const userId = (req as any).user?.id as string;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { status } = req.body as { status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'OVERDUE' };
+
+    // Verify the task exists
+    const existingTask = await caseService.getTaskById(taskId);
+    if (!existingTask) return res.status(404).json({ error: 'Task not found' });
+
+    // Access control: allow if admin, lawyer/client on case, task creator, or assigned user
+    const userRole = (req as any).user?.role as string;
+    const isLawyerOnCase = existingTask.case?.lawyerId === userId;
+    const isClientOnCase = existingTask.case?.clientId === userId;
+    const isTaskCreator = existingTask.assignedById === userId;
+    const isAssignedUser = existingTask.assignedToId === userId;
     
-//   }
-// }
+    if (userRole !== 'ADMIN' && !isLawyerOnCase && !isClientOnCase && !isTaskCreator && !isAssignedUser) {
+      return res.status(403).json({ error: 'You do not have permission to update this task' });
+    }
+
+    const updatedTask = await caseService.updateTaskStatus(taskId, status);
+
+    return res.status(200).json({ task: updatedTask });
+  } catch (error: any) {
+    return res.status(400).json({ error: String(error.message ?? error) });
+  }
+}
+
+export async function getTasks(req: Request, res: Response): Promise<Response> {
+  try {
+    const caseId = req.params.id;
+    const userId = (req as any).user?.id as string;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    // Verify the case exists
+    const existingCase = await caseService.getById(caseId);
+    if (!existingCase) return res.status(404).json({ error: 'Case not found' });
+
+    // Access control: allow if admin, lawyer assigned to case, or client owner
+    const userRole = (req as any).user?.role as string;
+    if (
+      userRole !== 'ADMIN' &&
+      existingCase.lawyerId !== userId &&
+      existingCase.clientId !== userId
+    ) {
+      return res.status(403).json({ error: 'You do not have access to this case' });
+    }
+
+    const tasks = await caseService.getTasksByCaseId(caseId);
+    return res.status(200).json({ tasks });
+  } catch (error: any) {
+    return res.status(500).json({ error: String(error.message ?? error) });
+  }
+}
+
+// Resolution method controller
+export async function updateResolutionMethod(req: Request, res: Response): Promise<Response> {
+  try {
+    const caseId = req.params.id;
+    const userId = (req as any).user?.id as string;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { resolutionMethod } = req.body as { resolutionMethod: 'TRIAL' | 'MEDIATION' | 'ARBITRATION' };
+
+    // Verify the case exists
+    const existingCase = await caseService.getById(caseId);
+    if (!existingCase) return res.status(404).json({ error: 'Case not found' });
+
+    // Only lawyer assigned to the case or admin can update resolution method
+    const userRole = (req as any).user?.role as string;
+    if (userRole !== 'ADMIN' && existingCase.lawyerId !== userId) {
+      return res.status(403).json({ error: 'Only the assigned lawyer can update the resolution method' });
+    }
+
+    const updatedCase = await caseService.updateResolutionMethod(caseId, resolutionMethod);
+    return res.status(200).json({ case: updatedCase });
+  } catch (error: any) {
+    return res.status(400).json({ error: String(error.message ?? error) });
+  }
+}

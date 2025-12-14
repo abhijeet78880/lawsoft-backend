@@ -53,4 +53,41 @@ export const createTimelineEventSchema = z.object({
 
 export type CreateTimelineEventSchema = z.infer<typeof createTimelineEventSchema>;
 
-export default { createCaseSchema, updateCaseSchema, addDocumentSchema, addTimelineSchema, addHearingSchema, createTimelineEventSchema };
+// Task schemas
+export const createTaskSchema = z.object({
+  body: z.object({
+    title: z.string().min(1, 'Title is required'),
+    description: z.string().optional(),
+    assignedToId: z.string().min(1, 'Assigned user ID is required'),
+    dueDate: z.string().refine((s) => !Number.isNaN(Date.parse(s)), { message: 'Invalid date' }).optional(),
+  }),
+});
+
+export type CreateTaskSchema = z.infer<typeof createTaskSchema>;
+
+export const updateTaskSchema = z.object({
+  params: z.object({ taskId: z.string().min(1) }),
+  body: z.object({
+    status: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'OVERDUE']),
+  }),
+});
+
+export type UpdateTaskSchema = z.infer<typeof updateTaskSchema>;
+
+export const getTasksSchema = z.object({
+  params: z.object({ id: z.string().min(1) }),
+});
+
+export type GetTasksSchema = z.infer<typeof getTasksSchema>;
+
+// Resolution method schema
+export const updateResolutionMethodSchema = z.object({
+  params: z.object({ id: z.string().min(1) }),
+  body: z.object({
+    resolutionMethod: z.enum(['TRIAL', 'MEDIATION', 'ARBITRATION']),
+  }),
+});
+
+export type UpdateResolutionMethodSchema = z.infer<typeof updateResolutionMethodSchema>;
+
+export default { createCaseSchema, updateCaseSchema, addDocumentSchema, addTimelineSchema, addHearingSchema, createTimelineEventSchema, createTaskSchema, updateTaskSchema, getTasksSchema, updateResolutionMethodSchema };

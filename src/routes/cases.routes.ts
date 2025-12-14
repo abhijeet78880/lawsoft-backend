@@ -21,6 +21,17 @@ router.get('/:id/documents', auth, ctrl.listDocuments);
 router.post('/:id/timeline', auth, validate(schemas.addTimelineSchema), ctrl.addTimeline);
 router.post('/:id/hearings', auth, requireRole('LAWYER'), validate(schemas.addHearingSchema), ctrl.addHearing);
 
+// Task routes
+router.post('/:id/tasks', auth, requireRole('CLIENT','LAWYER'), validate(schemas.createTaskSchema), ctrl.createTask);
+router.put('/tasks/:taskId', auth, validate(schemas.updateTaskSchema), ctrl.updateTask);
+router.get('/:id/tasks', auth, ctrl.getTasks);
+
+// Resolution method route
+router.put('/:id/resolution-method', auth, requireRole('LAWYER'), validate(schemas.updateResolutionMethodSchema), ctrl.updateResolutionMethod);
+
+
+
+// added by raj (refactor these routes later)
 router.post('/create/case/details/lawyer', auth, requireRole('LAWYER'), validate(schemas.createCaseSchema), ctrl.createCaseDetailsByLawyer);
 router.post('/accept/case/:id', auth, requireRole('CLIENT'), ctrl.acceptCase);
 router.get('/getall/cases', auth, requireRole('CLIENT', 'LAWYER'), ctrl.getAllCases);
