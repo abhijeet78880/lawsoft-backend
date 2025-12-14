@@ -171,6 +171,16 @@ export async function acceptCase(req: Request, res: Response) : Promise<Response
   try {
     const appointmentId = req.params.id;
     const today = new Date();
+    
+    // First check if a case with this appointmentId exists
+    const existingCase = await prisma.case.findUnique({
+      where: { appointmentId }
+    });
+    
+    if (!existingCase) {
+      return res.status(404).json({ error: 'Case not found for this appointment' });
+    }
+    
     const acceptedCase = await prisma.case.update({
       where: { appointmentId },
       data: {
@@ -180,7 +190,8 @@ export async function acceptCase(req: Request, res: Response) : Promise<Response
     })
     return res.status(200).json({ data: acceptedCase });
   } catch (error) {
-    return res.status(500).json({ error: 'Internal Server Error' });
+    console.error('Error accepting case:', error);
+    return res.status(500).json({ error: 'Internal Server Error', details: (error as Error).message });
   }
 }
 
